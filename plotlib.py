@@ -55,7 +55,13 @@ class PlotterThread:
 
 
 class PlotLib:
-    def __init__(self, color_style="whitegrid", color_palette="muted", fig=None, ax=None, input_queue=None, sns_input_queue=None, object_input_queue=None, output_queue=None, start_thread=True):
+    input_queue = Queue()
+    sns_input_queue = Queue()
+    object_input_queue = Queue()
+    output_queue = Queue()
+    start_thread = True
+
+    def __init__(self, color_style="whitegrid", color_palette="muted", fig=None, ax=None):
         """
             :param str: color_style:
             :param str:color_palette: can be ["pastel', 'deep', 'muted', 'bright', 'colorblind', 'dark', 'Blues', 'BuGn_r', 'GnBu_d', 'cubehelix', ] for reference: https://seaborn.pydata.org/tutorial/color_palettes.html
@@ -63,28 +69,13 @@ class PlotLib:
         self.color_style = color_style
         self.color_palette = color_palette
         self.plot_nr = 1
-        if input_queue is None:
-            self.input_queue = Queue()
-        else:
-            self.input_queue = input_queue
-        if sns_input_queue is None:
-            self.sns_input_queue = Queue()
-        else:
-            self.sns_input_queue = sns_input_queue
-        if object_input_queue is None:
-            self.object_input_queue = Queue()
-        else:
-            self.object_input_queue = object_input_queue
-        if output_queue is None:
-            self.output_queue = Queue()
-        else:
-            self.output_queue = output_queue
-        if start_thread:
-            p = Process(target=PlotterThread, args=(self.input_queue, self.sns_input_queue, self.object_input_queue, self.output_queue))
+
+        if PlotLib.start_thread:
+            p = Process(target=PlotterThread, args=(PlotLib.input_queue, PlotLib.sns_input_queue, PlotLib.object_input_queue, PlotLib.output_queue))
             p.start()
-            self.process = p
-        else:
-            self.process = None
+            PlotLib.process = p
+            PlotLib.start_thread = False
+
         self.call_sns_function("set_style", self.color_style)
         if fig is None or ax is None:
             _, self.fig = self.call_function("figure", save_to_dict=True)
@@ -127,7 +118,7 @@ class PlotLib:
         gs = gridspec.GridSpec(rows, columns)
         _, ax = self.call_object_function(self.fig, 'add_subplot', gs[row, col], save_to_dict=True)
 
-        return PlotLib(color_style=self.color_style, color_palette=self.color_palette, fig=self.fig, ax=ax, input_queue=self.input_queue, sns_input_queue=self.sns_input_queue, object_input_queue=self.object_input_queue, output_queue=self.output_queue, start_thread=False)
+        return PlotLib(color_style=self.color_style, color_palette=self.color_palette, fig=self.fig, ax=ax)
 
     def draw(self, object, function, *args, data=None, legend=None, color=None, live_update=True, line_width=3, **kwargs):
         if not legend is None and not "label" in kwargs.keys():
