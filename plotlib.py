@@ -14,30 +14,44 @@ class PlotterThread:
 
     def main(self):
         objects = dict()
+        object_id = 0
         plt.ion()
+        pause_interval = .2
         while True:
             try:
-                plt.pause(.02)
+                plt.pause(pause_interval)
+                pause_interval = min(.2 + pause_interval, 1)
             except:
-                pass
+                break
 
             if not self.input_queue.empty():
-                function, args, kwargs, save_to_dict, save_name = self.input_queue.get()
+                pause_interval = .2
+                function, args, kwargs, save_to_dict = self.input_queue.get()
                 result = getattr(plt, function)(*args, **kwargs)
                 if save_to_dict:
-                    objects[save_name] = result
-                self.result_queue.put(result)
+                    name = f'o{object_id}'
+                    objects[name] = result
+                    object_id += 1
+                    self.result_queue.put((result, name))
+                else:
+                    self.result_queue.put(result)
             if not self.sns_input_queue.empty():
+                pause_interval = .2
                 function, args, kwargs = self.sns_input_queue.get()
                 self.result_queue.put(getattr(sns, function)(*args, **kwargs))
             if not self.object_input_queue.empty():
-                object, function, args, kwargs, save_to_dict, save_name = self.object_input_queue.get()
+                pause_interval = .2
+                object, function, args, kwargs, save_to_dict = self.object_input_queue.get()
                 if type(object) == type('string'):
                     object = objects[object]
                 result = getattr(object, function)(*args, **kwargs)
                 if save_to_dict:
-                    objects[save_name] = result
-                self.result_queue.put(result)
+                    name = f'o{object_id}'
+                    objects[name] = result
+                    object_id += 1
+                    self.result_queue.put((result, name))
+                else:
+                    self.result_queue.put(result)
 
 
 class PlotLib:
@@ -73,8 +87,7 @@ class PlotLib:
             self.process = None
         self.call_sns_function("set_style", self.color_style)
         if fig is None or ax is None:
-            self.fig = "figure"
-            self.call_function("figure", save_to_dict=True, save_name=self.fig)
+            _, self.fig = self.call_function("figure", save_to_dict=True)
         else:
             self.fig = fig
 
@@ -82,17 +95,12 @@ class PlotLib:
 
     def get_ax(self):
         if self.ax is None:
-            index = 0
-            while f'ax{index}' in PlotLib.existing_names:
-                index += 1
-            self.ax = f'ax{index}'
-            PlotLib.existing_names.add(self.ax)
             gs = gridspec.GridSpec(1, 1)
-            self.call_object_function(self.fig, 'add_subplot', gs[0, 0], save_to_dict=True, save_name=self.ax)
+            _, self.ax = self.call_object_function(self.fig, 'add_subplot', gs[0, 0], save_to_dict=True)
         return self.ax
 
-    def call_function(self, function_name, *args, save_to_dict=False, save_name="", **kwargs):
-        self.input_queue.put((function_name, args, kwargs, save_to_dict, save_name))
+    def call_function(self, function_name, *args, save_to_dict=False, **kwargs):
+        self.input_queue.put((function_name, args, kwargs, save_to_dict))
         while self.output_queue.empty():
             pass
         return self.output_queue.get()
@@ -103,10 +111,10 @@ class PlotLib:
             pass
         return self.output_queue.get()
 
-    def call_object_function(self, object, function_name, *args, save_to_dict=False, save_name="", **kwargs):
+    def call_object_function(self, object, function_name, *args, save_to_dict=False, **kwargs):
         if object is None:
             raise Exception("object cannot be None")
-        self.object_input_queue.put((object, function_name, args, kwargs, save_to_dict, save_name))
+        self.object_input_queue.put((object, function_name, args, kwargs, save_to_dict))
         while self.output_queue.empty():
             pass
         return self.output_queue.get()
@@ -117,12 +125,7 @@ class PlotLib:
 
     def get_subplot(self, rows, columns, row, col):
         gs = gridspec.GridSpec(rows, columns)
-        index = 0
-        while f'ax{index}' in PlotLib.existing_names:
-            index += 1
-        ax = f'ax{index}'
-        PlotLib.existing_names.add(ax)
-        self.call_object_function(self.fig, 'add_subplot', gs[row, col], save_to_dict=True, save_name=ax)
+        _, ax = self.call_object_function(self.fig, 'add_subplot', gs[row, col], save_to_dict=True)
 
         return PlotLib(color_style=self.color_style, color_palette=self.color_palette, fig=self.fig, ax=ax, input_queue=self.input_queue, sns_input_queue=self.sns_input_queue, object_input_queue=self.object_input_queue, output_queue=self.output_queue, start_thread=False)
 
@@ -166,4 +169,3 @@ class PlotLib:
             y = np.random.randint(8, 20, 23)
             self.plot_fill(x, y, legend='test')
 
-PlotLib.existing_names = set()
