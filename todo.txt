@@ -1,0 +1,6 @@
+- Data-cursor + point and click combination
+- restructuring to be core vs plotting concept
+- add useful plotting routines:
+    percentile based plotting
+    scatterplot with moving average
+    ...

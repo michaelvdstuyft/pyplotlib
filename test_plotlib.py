@@ -5,9 +5,9 @@ x = np.arange(23)
 y = np.random.randint(8, 20, 23)
 y2 = np.random.randint(8, 20, 23)
 
-
 # load a figure
 fig = PlotLib()
+print(fig.fig)
 fig.plot_fill(x, y, legend='y')
 
 fig2 = PlotLib()
@@ -19,3 +19,8 @@ b = fig2.get_subplot(1, 2, 0, 0)
 a.plot_fill(x, y, legend='y')
 b.plot_fill(x, y, legend='y')
 a.plot_fill(x, y2, legend='y2')
+
+print("finished main thread!")
+input("press enter to continue")
+
+a.plot_fill(x, y2+y, legend='y2+y')
